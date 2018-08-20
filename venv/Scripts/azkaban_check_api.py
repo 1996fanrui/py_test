@@ -5,124 +5,107 @@ import sys
 from optparse import OptionParser
 import datetime
 import requests
-from pyspark import SparkContext, SparkConf
-from pyspark.sql import HiveContext
-from pyspark.sql import Row
-from pyspark.sql.types import (StructType, StructField, DataType, StringType, IntegerType)
+import logging
 
-username = 'yinxiaofang@etouch.cn'
-password = 'etouch2015'
-app_keys = ('5a8fdf31b27b0a59ad000096', '5a8fdfc1b27b0a033f000082')
-app_key_map = {'5a8fdf31b27b0a59ad000096': '91988061', '5a8fdfc1b27b0a033f000082': '91988062'}
-period_type = ('daily', 'weekly', 'monthly')
-key_value = []
+username = 'fanrui'
+password = '123123'
+session_id = ''
+projectsName = ['wnl_user_daily_new_active_stats', 'wnl_custom_event_stats']
+azkabanProjects = []
+retryExecid = {}    # 检测到运行失败需要重试的 execid 和 对应的执行成功的job
 
-DATE_FORMAT = "%Y-%m-%d"
+class AzkabanProject:
+    '所有azkaban项目的基类'
 
-
-# 判断输入的日期参数是否合法
-def validate_date_str(date_str):
-    try:
-        datetime.datetime.strptime(date_str, DATE_FORMAT)
-        return True
-    except ValueError:
-        return False
+    def __init__(self, name, projectId, flows):
+        self.name = name
+        self.projectId = projectId
+        self.flows = flows
 
 
-# 将日期转换为周
-def date_to_week(date_str):
-    date = (datetime.datetime.strptime(date_str, DATE_FORMAT) + datetime.timedelta(6)).isocalendar()
-    if date[1]<10:
-        return str(date[0]) + '0' + str(date[1])
-    return str(date[0]) + str(date[1])
+def consoleOut():
+    ''''' Output log to file and console '''
+    # Define a Handler and set a format which output to file
+    logging.basicConfig(
+        level=logging.INFO,  # 定义输出到文件的log级别，大于此级别的都被输出
+        format='%(asctime)s  %(filename)s : %(levelname)s  %(message)s',  # 定义输出log的格式
+        datefmt='%Y-%m-%d %A %H:%M:%S')  # 时间
 
 
-# 获取所有的channel id
-def get_all_encode_channels():
-    wlkk_android_channel = {}
-    wlkk_ios_channel = {}
-    for i in range(1, 6):
-        for app_key in app_keys:
-            param = {'appkey': app_key, 'per_page': 90, 'page': i}
-            r = requests.get("http://api.umeng.com/channels", auth=(username, password), params=param)
-
-            if app_key == app_keys[0]:
-                for channel in r.json():
-                    wlkk_android_channel[channel["id"]] = channel['channel']
-            else:
-                for channel in r.json():
-                    wlkk_ios_channel[channel["id"]] = channel['channel']
-
-    return wlkk_android_channel, wlkk_ios_channel
-
-
-# 获取指定日期范围内所有channel的wau
-def get_all_channel_wau(start_date,end_date):
-    channels = get_all_encode_channels()
-    wlkk_android_channel = channels[0]
-    wlkk_ios_channel = channels[1]
-
-    for app_key in app_keys:
-        param = {'appkey': app_key, 'start_date': start_date, 'end_date': end_date, 'per_page': 90,
-                 'period_type': period_type[1]}
-        if app_key == app_keys[0]:
-            for channel in wlkk_android_channel.values():
-                param['channel'] = channel
-                requests_get(param=param)
-        else:
-            for channel in wlkk_ios_channel.values():
-                param['channel'] = channel
-                requests_get(param=param)
-
-
-# 发出请求，将数据以tuple的形式，保存到list中
-def requests_get(param):
-    r = requests.get("http://api.umeng.com/active_users", auth=(username, password), params=param).json()
-    # print r
-    if "dates" in r:
-        for index in range(len(r["dates"])):
-            week = date_to_week(r["dates"][index])
-            wau = r["data"]["all"][index]
-            key_value.append((week, param['channel'], wau))
-
-
-def list_to_row(x):
-    return Row(week=x[0], channel=x[1], wau=x[2])
-
-
-if __name__ == '__main__':
-    parser = OptionParser()
-    parser.add_option("-d", help='date format yyyy-mm-dd')
-    (options, args) = parser.parse_args()
-    biz_date = ""
-
-    if options.d is not None and validate_date_str(options.d):
-        biz_date = options.d
-    elif options.d is not None and not validate_date_str(options.d):
-        logging.error("日期格式错误:yyyy-mm-dd")
-        sys.exit(0)
+# 登录账号，获取 session_id
+def login():
+    global session_id
+    param = {'action': 'login', 'username': username, 'password': password}
+    # header = {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8", "X-Requested-With": "XMLHttpRequest"}
+    r = requests.post(url="https://10.19.74.215:8443", verify=False, data=param).json() #, headers= header
+    if 'session.id' in r:
+        session_id = r['session.id']
+        logging.info(u'成功获取到session_id：' + session_id)
     else:
-        # 每周一调度，-8天，默认上周日的数据
-        biz_date = (datetime.datetime.now() - datetime.timedelta(8)).strftime(DATE_FORMAT)
-    print(biz_date)
+        logging.error(u'登录失败，获取session_id失败')
+        if 'error' in r:
+            logging.error(u'error信息：' + r['error'])
+        else:
+            logging.error(u'返回的信息：' + r['error'])
+        sys.exit(1)
 
-    start_date = biz_date   # 回滚时,要修改的日期
-    end_date = biz_date     # 回滚时,要修改的日期
-    get_all_channel_wau(start_date=start_date, end_date=end_date)
 
-    conf = SparkConf().setAppName(value="umeng_stat_wau")
-    sc = SparkContext(conf=conf)
-    sc.setLogLevel("WARN")
-    hiveContext = HiveContext(sc)
-    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
-    hiveContext.setConf("spark.sql.shuffle.partitions", "1")
-    rdd1 = sc.parallelize(key_value, 1)
-    rowRdd = rdd1.map(list_to_row)
-    schema = StructType([StructField("week", StringType(), True),
-                         StructField("channel", StringType(), True),
-                         StructField("wau", IntegerType(), True)])
-    dfRequest = hiveContext.createDataFrame(data=rdd1, schema=schema)
-    dfRequest.registerTempTable("umeng_wau")
-    hiveContext.sql("use prod")
-    hiveContext.sql("insert overwrite table ads_hive_weili_umeng_api_wau_stat_1w select channel, wau, week from umeng_wau")
-    sc.stop()
+# 根据项目名 获取项目的所有 flow
+def fetchFlowsOfProject():
+    for projectName in projectsName:
+        param = {'ajax': 'fetchprojectflows', 'session.id': session_id, 'project': projectName}
+        r = requests.get(url="https://10.19.74.215:8443/manager", verify=False, params=param).json()
+        flows = []
+        for flow in r['flows']:
+            flows.append(flow['flowId'])
+        azkabanProjects.append(AzkabanProject(name=projectName, projectId=r['projectId'], flows=flows))
+
+
+# 通过递归，把jobName及其依赖的job添加到成功的 succeededJobs 中
+def recursionAddDependence(succeededJobs, dependenceJobs, jobName):
+    if jobName not in succeededJobs:    # 当前job不在成功的job列表中
+        succeededJobs.append(jobName)
+        if jobName in dependenceJobs:   # 当前job有依赖的其他job
+            for dependenceJob in dependenceJobs[jobName]:   # 遍历，将其依赖的job添加到succeededJobs中
+                recursionAddDependence(succeededJobs, dependenceJobs, dependenceJob)
+
+
+# 根据依赖关系，将成功的job和成功job依赖的job添加到 retryExecid 中
+def addJob(execid, r):
+    global retryExecid
+    succeededJobs = []
+    dependenceJobs = {}
+    for job in r['nodes']:  # 遍历所有job，构建所有job之间的依赖关系
+        if 'in' in job:   # 这个job有依赖的job
+            dependenceJobs[job['id']] = job['in']
+
+    for job in r['nodes']:  # 遍历所有job，将成功的job添加到succeededJobs中
+        if job['status'] == 'SUCCEEDED':  # 此job已经执行成功了，把该job和该job的所有依赖 加入到 succeededJobs
+            recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
+    retryExecid[execid] = succeededJobs
+
+
+# 根据 项目名、flow名 获取该flow的运行记录
+def fetchFlowExecutions():
+    for azkabanProject in azkabanProjects:
+        for flow in azkabanProject.flows:
+            param = {'ajax': 'fetchFlowExecutions', 'session.id': session_id, 'project': azkabanProject.name,
+                     'flow': flow, 'start': 0, 'length': 1} # 1表示获取最新的1次执行记录
+            r = requests.get(url="https://10.19.74.215:8443/manager", verify=False, params=param).json()
+            print r
+            print r['executions'][0]['status']
+            if r['executions'][0]['status'] == 'SUCCEEDED':     # 该flow执行失败，获取每个Job详细的失败信息
+                execid = r['executions'][0]['execId']
+                param = {'ajax': 'fetchexecflow', 'session.id': session_id, 'execid': execid}
+                r = requests.get(url="https://10.19.74.215:8443/executor", verify=False, params=param).json()
+                addJob(execid, r)
+
+
+# 使用 crontab 进行定时调度
+if __name__ == '__main__':
+    consoleOut()
+    login()
+    fetchFlowsOfProject()
+    fetchFlowExecutions()
+
+    print retryExecid
