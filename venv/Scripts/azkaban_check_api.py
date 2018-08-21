@@ -10,9 +10,9 @@ import logging
 username = 'fanrui'
 password = '123123'
 session_id = ''
-projectsName = ['wnl_user_daily_new_active_stats', 'wnl_custom_event_stats']
+projectsName = ['wnl_user_daily_new_active_stats']    # 'wnl_user_daily_new_active_stats','wnl_custom_event_stats','wnl_pv_event_stats'
 azkabanProjects = []
-retryExecid = {}    # 检测到运行失败需要重试的 execid 和 对应的执行成功的job
+retryFlows = []    # 检测到运行失败需要重试的 execid 和 对应的执行成功的job
 
 class AzkabanProject:
     '所有azkaban项目的基类'
@@ -22,6 +22,14 @@ class AzkabanProject:
         self.projectId = projectId
         self.flows = flows
 
+
+class ExecuteFlow:
+    '要执行的flow的信息'
+
+    def __init__(self, project, flow, disabled):
+        self.project = project
+        self.flow = flow
+        self.disabled = disabled
 
 def consoleOut():
     ''''' Output log to file and console '''
@@ -82,10 +90,10 @@ def addJob(execid, r):
     for job in r['nodes']:  # 遍历所有job，将成功的job添加到succeededJobs中
         if job['status'] == 'SUCCEEDED':  # 此job已经执行成功了，把该job和该job的所有依赖 加入到 succeededJobs
             recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
-    retryExecid[execid] = succeededJobs
+    retryFlows.append(ExecuteFlow(project=r['project'], flow=r['flow'], disabled=succeededJobs))
 
 
-# 根据 项目名、flow名 获取该flow的运行记录
+# 根据 项目名、flow名 获取该flow的运行记录, 并获取flow 每个job的详细失败信息
 def fetchFlowExecutions():
     for azkabanProject in azkabanProjects:
         for flow in azkabanProject.flows:
@@ -94,7 +102,7 @@ def fetchFlowExecutions():
             r = requests.get(url="https://10.19.74.215:8443/manager", verify=False, params=param).json()
             print r
             print r['executions'][0]['status']
-            if r['executions'][0]['status'] == 'SUCCEEDED':     # 该flow执行失败，获取每个Job详细的失败信息
+            if r['executions'][0]['status'] != 'SUCCEEDED':     # 该flow执行失败，获取每个Job详细的失败信息
                 execid = r['executions'][0]['execId']
                 param = {'ajax': 'fetchexecflow', 'session.id': session_id, 'execid': execid}
                 r = requests.get(url="https://10.19.74.215:8443/executor", verify=False, params=param).json()
@@ -108,4 +116,7 @@ if __name__ == '__main__':
     fetchFlowsOfProject()
     fetchFlowExecutions()
 
-    print retryExecid
+    for retryFlow in retryFlows:
+        print retryFlow.project
+        print retryFlow.flow
+        print retryFlow.disabled
