@@ -16,7 +16,7 @@ username = 'fanrui'
 password = '123123'
 failureEmails = ''
 session_id = ''
-projectsName = [u'wnl_test']    # 'wnl_user_daily_new_active_stats','wnl_custom_event_stats','wnl_pv_event_stats'
+projectsName = [u'wnl_user_daily_new_active_stats',u'wnl_custom_event_stats',u'wnl_pv_event_stats']    # u'wnl_test',u'wnl_user_daily_new_active_stats',u'wnl_custom_event_stats',u'wnl_pv_event_stats'
 azkabanProjects = []
 retryFlows = []    # 检测到运行失败需要重试的 execid 和 对应的执行成功的job
 
