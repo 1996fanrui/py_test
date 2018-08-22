@@ -92,15 +92,15 @@ def recursionAddDependence(succeededJobs, dependenceJobs, jobName):
 def addJob(r):
     global retryFlows
     succeededJobs = []
-    dependenceJobs = {}
-    for job in r['nodes']:  # 遍历所有job，构建所有job之间的依赖关系
-        if 'in' in job:   # 这个job有依赖的job
-            dependenceJobs[job['id']] = job['in']
+    # dependenceJobs = {}
+    # for job in r['nodes']:  # 遍历所有job，构建所有job之间的依赖关系
+    #     if 'in' in job:   # 这个job有依赖的job
+    #         dependenceJobs[job['id']] = job['in']
 
     for job in r['nodes']:  # 遍历所有job，将成功的job添加到succeededJobs中
         if job['status'] == 'SUCCEEDED' or job['status'] == 'SKIPPED':  # 此job已经执行成功了，把该job和该job的所有依赖 加入到 succeededJobs
-            recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
-            # succeededJobs.append(job['id'])
+            # recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
+            succeededJobs.append(job['id'])
     retryFlows.append(ExecuteFlow(project=r['project'], flow=r['flow'], disabled=succeededJobs))
     logging.info(r['project'] + u'项目的Flow：' + r['flow']
                  + u'，之前已经执行完成Job为：' + ','.join(succeededJobs) )
