@@ -10,6 +10,11 @@ import logging
 import urllib
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+# 策略选择，可选择的策略有：depend, direct 。
+# direct 表示将状态为 SUCCEEDED 或者 SKIPPED 的job做disabled操作
+# depend 表示 不仅将状态为 SUCCEEDED 或者 SKIPPED 的job做disabled操作，而且将这些job依赖的job也做 disabled操作
+strategy = 'depend' # 可选择的策略有：depend, direct
+
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 username = 'fanrui'
@@ -92,15 +97,18 @@ def recursionAddDependence(succeededJobs, dependenceJobs, jobName):
 def addJob(r):
     global retryFlows
     succeededJobs = []
-    # dependenceJobs = {}
-    # for job in r['nodes']:  # 遍历所有job，构建所有job之间的依赖关系
-    #     if 'in' in job:   # 这个job有依赖的job
-    #         dependenceJobs[job['id']] = job['in']
+    if strategy == 'depend':
+        dependenceJobs = {}
+        for job in r['nodes']:  # 遍历所有job，构建所有job之间的依赖关系
+            if 'in' in job:   # 这个job有依赖的job
+                dependenceJobs[job['id']] = job['in']
 
     for job in r['nodes']:  # 遍历所有job，将成功的job添加到succeededJobs中
         if job['status'] == 'SUCCEEDED' or job['status'] == 'SKIPPED':  # 此job已经执行成功了，把该job和该job的所有依赖 加入到 succeededJobs
-            # recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
-            succeededJobs.append(job['id'])
+            if strategy == 'depend':
+                recursionAddDependence(succeededJobs, dependenceJobs, job['id'])
+            elif strategy == 'direct':
+                succeededJobs.append(job['id'])
     retryFlows.append(ExecuteFlow(project=r['project'], flow=r['flow'], disabled=succeededJobs))
     logging.info(r['project'] + u'项目的Flow：' + r['flow']
                  + u'，之前已经执行完成Job为：' + ','.join(succeededJobs) )
