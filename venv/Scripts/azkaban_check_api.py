@@ -17,6 +17,8 @@ disabledStrategy = 'depend' # 可选择的策略有：depend, direct
 
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+azkabanIP = '10.19.74.215'
+azkabanPort = '8443'
 username = 'fanrui'
 password = '123123'
 failureEmails = ''
@@ -56,7 +58,7 @@ def consoleOut():
 def login():
     global session_id
     param = {'action': 'login', 'username': username, 'password': password}
-    r = requests.post(url="https://10.19.74.215:8443", verify=False, data=param).json() #, headers= header
+    r = requests.post(url="https://" + azkabanIP + ":" + azkabanPort, verify=False, data=param).json() #, headers= header
     if 'session.id' in r:
         session_id = r['session.id']
         logging.info(u'成功获取到session_id：' + session_id)
@@ -73,7 +75,7 @@ def login():
 def fetchFlowsOfProject():
     for projectName in projectsName:
         param = {'ajax': 'fetchprojectflows', 'session.id': session_id, 'project': projectName}
-        r = requests.get(url="https://10.19.74.215:8443/manager", verify=False, params=param).json()
+        r = requests.get(url="https://" + azkabanIP + ":" + azkabanPort + "/manager", verify=False, params=param).json()
         flows = []
         if 'error' in r:
             logging.info(u'获取项目' + projectName + u'的Flows时失败，失败信息：' + r['error'])
@@ -120,7 +122,7 @@ def fetchFlowExecutions():
         for flow in azkabanProject.flows:
             param = {'ajax': 'fetchFlowExecutions', 'session.id': session_id, 'project': azkabanProject.name,
                      'flow': flow, 'start': 0, 'length': 1} # length = 1 表示获取最新的1次执行记录
-            r = requests.get(url="https://10.19.74.215:8443/manager", verify=False, params=param).json()
+            r = requests.get(url="https://" + azkabanIP + ":" + azkabanPort + "/manager", verify=False, params=param).json()
             flowStatus = r['executions'][0]['status']
 
             todayTime = long(time.mktime(time.strptime(datetime.date.today().strftime('%Y%m%d'), '%Y%m%d'))) * 1000
@@ -136,7 +138,7 @@ def fetchFlowExecutions():
                                  + u'，状态为' + flowStatus
                                  + u'，准备获取该flow执行成功的job')
                     param = {'ajax': 'fetchexecflow', 'session.id': session_id, 'execid': execid}
-                    r = requests.get(url="https://10.19.74.215:8443/executor", verify=False, params=param).json()
+                    r = requests.get(url="https://" + azkabanIP + ":" + azkabanPort + "/executor", verify=False, params=param).json()
                     addJob(r)
                 else:
                     logging.info(azkabanProject.name + u'项目的Flow：' + flow + u'，当前运行状态为：' + flowStatus + u'，不需要再进行调度')
@@ -150,7 +152,7 @@ def executeFlows():
         param = {'ajax': 'executeFlow', 'session.id': session_id, 'project': retryFlow.project,
                  'flow': retryFlow.flow, 'failureAction': 'finishPossible', 'disabled': retryFlow.disabled
                  }
-        r = requests.get(url='https://10.19.74.215:8443/executor', verify=False, params=param ).json()
+        r = requests.get(url='https://" + azkabanIP + ":" + azkabanPort + "/executor', verify=False, params=param ).json()
         if 'error' in r:
             logging.error(retryFlow.project + u'项目的Flow：' + retryFlow.flow
                          + u'执行失败，错误提示：' + r['error'])
