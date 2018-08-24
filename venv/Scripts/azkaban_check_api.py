@@ -17,13 +17,15 @@ disabledStrategy = 'depend' # 可选择的策略有：depend, direct
 
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-azkabanIP = '10.19.74.215'
+azkabanIP = 'node1.azkaban.bigdata.dmp.com'
 azkabanPort = '8443'
 username = 'fanrui'
 password = '123123'
 failureEmails = ''
 session_id = ''
-projectsName = [u'wnl_user_daily_new_active_stats',u'wnl_custom_event_stats',u'wnl_pv_event_stats']    # u'wnl_test',u'wnl_user_daily_new_active_stats',u'wnl_custom_event_stats',u'wnl_pv_event_stats'
+projectsName = [u'sqoop_syc_stats', u'custom_event_stats', u'pv_event_stats', u'web_event_stats',
+                u'user_daily_new_active_stats', u'swap_cleanup', u'weili_lizhi_stats',u'weili_lizhi_stats_1w',
+                u'weili_tmp_stats', u'marketing_channel_daily', u'weili_risk_user_stats']    # u'sqoop_syc_stats',u'user_daily_new_active_stats',u'custom_event_stats',u'pv_event_stats'
 azkabanProjects = []
 retryFlows = []    # 检测到运行失败需要重试的 execid 和 对应的执行成功的job
 

@@ -13,13 +13,13 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-azkabanIP = '10.19.74.215'
+azkabanIP = 'node1.azkaban.bigdata.dmp.com' # 'node1.azkaban.wnl.dmp.com'
 azkabanPort = '8443'
 username = 'fanrui'
 password = '123123'
 failureEmails = ''
 session_id = ''
-dependenceProjectsName = [u'wnl_sqoop_syc_stats',u'wnl_user_daily_new_active_stats',u'wnl_pv_event_stats']    # u'wnl_sqoop_syc_stats',u'wnl_user_daily_new_active_stats',u'wnl_custom_event_stats',u'wnl_pv_event_stats'
+dependenceProjectsName = [u'sqoop_syc_stats',u'user_daily_new_active_stats',u'pv_event_stats']    # u'sqoop_syc_stats',u'user_daily_new_active_stats',u'custom_event_stats',u'pv_event_stats'
 dependenceAzkabanProjects = []
 
 class AzkabanProject:
@@ -124,10 +124,10 @@ if __name__ == '__main__':
             time.sleep(600.0)
         count = count + 1
 
+        dependenceAzkabanProjects = []
         login()                 # 登录账号,获取 session_id
         fetchFlowsOfProject()   # 根据项目名 获取项目对象
         flag = fetchFlowExecutions()   # 所有依赖都完成返回True，否则返回False
-        dependenceAzkabanProjects = []
 
     logging.info('检查' + str(count) + '次后，所有依赖项目都执行成功，check通过')
     sys.exit(0)
