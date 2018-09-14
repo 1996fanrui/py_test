@@ -154,7 +154,7 @@ def executeFlows():
         param = {'ajax': 'executeFlow', 'session.id': session_id, 'project': retryFlow.project,
                  'flow': retryFlow.flow, 'failureAction': 'finishPossible', 'disabled': retryFlow.disabled
                  }
-        r = requests.get(url='https://" + azkabanIP + ":" + azkabanPort + "/executor', verify=False, params=param ).json()
+        r = requests.get(url="https://" + azkabanIP + ":" + azkabanPort + "/executor", verify=False, params=param ).json()
         if 'error' in r:
             logging.error(retryFlow.project + u'项目的Flow：' + retryFlow.flow
                          + u'执行失败，错误提示：' + r['error'])
