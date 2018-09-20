@@ -25,7 +25,10 @@ local_config = {
 
 online_config = {
     'hosts': [
-        ('node1.aerospike.bigdata.wl.com', 3000)
+        ('node5.aerospike.bigdata.wl.com', 3000),
+        ('node6.aerospike.bigdata.wl.com', 3000),
+        ('node7.aerospike.bigdata.wl.com', 3000),
+        ('node8.aerospike.bigdata.wl.com', 3000),
     ],
     'policies': {
         'timeout': 10000  # milliseconds
