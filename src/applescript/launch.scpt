@@ -1,14 +1,21 @@
 on selectItem()
         -- 定义按钮
-    set itemButtons to {"node51.ikh", "git pull", "node51 test"}
+    set itemButtons to {"node51.ikh", "git pull", "other"}
     set temp to display dialog "爸爸，请选择您要的服务:" buttons itemButtons
     set itemName to button returned of temp
     if itemName is "node51.ikh" then
         runIkh()
     else if itemName is "git pull" then
         gitpull()
-    else if itemName is "node51 test" then
-        cdtest()
+    else if itemName is "other" then
+        set itemButtons to {"node51 test", "run phoenix"}
+        set temp to display dialog "爸爸，请选择您要的服务:" buttons itemButtons
+        set itemName to button returned of temp
+        if itemName is "node51 test" then
+            cdtest()
+        else if itemName is "run phoenix" then
+            runPhoenix()
+        end if
     end if
 end selectItem
 
@@ -93,6 +100,24 @@ on cdtest()
           end tell
     end tell
 end cdtest
+
+
+on runPhoenix()
+    tell application "iTerm"
+        tell current window
+            set ikhtab to create tab with profile "node51.ikh.bigdata.dmp.com"
+            tell first session of ikhtab
+                -- root user 登录
+                delay 1
+                write text "1"
+                delay 1
+                write text "cd /data/dmp/phoenix/bin"
+                write text "sh ./run_phoenix.sh"
+            end tell
+          end tell
+    end tell
+end runIkh
+
 
 selectItem()
 
